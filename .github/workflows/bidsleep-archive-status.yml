@@ -9,54 +9,45 @@ on:
 
 permissions:
   contents: read
-  actions: read
+  actions: write
 
 jobs:
   status:
-    name: identify-runs-and-probe-archive-transfer
+    name: cancel-single-stream-and-capture-range-metadata
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
       GH_TOKEN: ${{ github.token }}
+      OBSOLETE_RUN_ID: '30519804938'
     steps:
-      - name: Query branch workflow runs and archive transfer path
+      - name: Cancel the unviable single-stream run
+        run: gh api --method POST "/repos/${GITHUB_REPOSITORY}/actions/runs/${OBSOLETE_RUN_ID}/cancel" || true
+      - name: Capture exact archive size and range support
         run: |
           set -euo pipefail
-          gh api \
-            --method GET \
-            -H 'Accept: application/vnd.github+json' \
-            "/repos/${GITHUB_REPOSITORY}/actions/runs?branch=agent%2Fbidsleep-phase4-6&per_page=100" \
-            > all-runs.json
-          python - <<'PY'
-          import json, os, subprocess
-          data=json.load(open('all-runs.json'))
-          summary=[]
-          for run in data.get('workflow_runs', []):
-              rid=run['id']
-              raw=subprocess.check_output(['gh','api',f'/repos/{os.environ["GITHUB_REPOSITORY"]}/actions/runs/{rid}/artifacts?per_page=100'])
-              artifacts=json.loads(raw).get('artifacts',[])
-              summary.append({
-                  'id':rid,'name':run['name'],'run_number':run['run_number'],'event':run['event'],
-                  'status':run['status'],'conclusion':run.get('conclusion'),'head_sha':run['head_sha'],
-                  'created_at':run['created_at'],'updated_at':run['updated_at'],
-                  'artifacts':[{'id':a['id'],'name':a['name'],'size_in_bytes':a['size_in_bytes'],'expired':a['expired']} for a in artifacts],
-              })
-          json.dump(summary,open('run-artifact-summary.json','w'),indent=2)
-          PY
           url='https://physionet.org/static/published-projects/bidsleep-dataset/bidsleep-dataset-1.0.0.zip'
-          curl --fail --location --connect-timeout 30 --max-time 300 \
-            --range 0-10485759 --output archive-prefix.bin \
+          curl --fail --location --connect-timeout 30 --max-time 120 \
+            --range 0-0 --dump-header archive-range-headers.txt --output archive-byte.bin \
             --write-out '{"http_code":%{http_code},"size_download":%{size_download},"speed_download":%{speed_download},"time_total":%{time_total},"url_effective":"%{url_effective}"}\n' \
-            "$url" > archive-transfer-probe.json
-          stat -c '%s' archive-prefix.bin > archive-prefix-size.txt
-          cat archive-transfer-probe.json
+            "$url" > archive-range-probe.json
+          python - <<'PY'
+          import json,re
+          headers=open('archive-range-headers.txt',errors='replace').read()
+          matches=re.findall(r'(?im)^content-range:\s*bytes\s+(\d+)-(\d+)/(\d+)\s*$',headers)
+          if not matches:
+              raise SystemExit('Content-Range total not found')
+          start,end,total=map(int,matches[-1])
+          probe=json.load(open('archive-range-probe.json'))
+          result={'range_start':start,'range_end':end,'total_bytes':total,**probe}
+          json.dump(result,open('archive-range-metadata.json','w'),indent=2)
+          print(result)
+          PY
       - uses: actions/upload-artifact@v4
         with:
-          name: bidsleep-run-and-transfer-status
+          name: bidsleep-archive-range-metadata
           path: |
-            all-runs.json
-            run-artifact-summary.json
-            archive-transfer-probe.json
-            archive-prefix-size.txt
+            archive-range-headers.txt
+            archive-range-probe.json
+            archive-range-metadata.json
           retention-days: 7
           compression-level: 9
