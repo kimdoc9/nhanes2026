@@ -7,12 +7,6 @@ on:
       - 'bidsleep_archive_runner.py'
       - '.github/workflows/bidsleep-archive.yml'
       - 'research/bidsleep_phase4_6/**'
-  pull_request:
-    branches: [main]
-    paths:
-      - 'bidsleep_archive_runner.py'
-      - '.github/workflows/bidsleep-archive.yml'
-      - 'research/bidsleep_phase4_6/**'
   workflow_dispatch:
 
 permissions:
