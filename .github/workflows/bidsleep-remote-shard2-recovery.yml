@@ -6,6 +6,11 @@ on:
     paths:
       - 'bidsleep_remote_shard2_recovery.py'
       - '.github/workflows/bidsleep-remote-shard2-recovery.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'bidsleep_remote_shard2_recovery.py'
+      - '.github/workflows/bidsleep-remote-shard2-recovery.yml'
   workflow_dispatch:
 
 permissions:
