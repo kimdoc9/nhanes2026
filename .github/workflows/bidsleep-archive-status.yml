@@ -1,53 +1,14 @@
 name: BID-Sleep Archive Status Diagnostic
 
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - '.github/workflows/bidsleep-archive-status.yml'
   workflow_dispatch:
 
 permissions:
   contents: read
-  actions: write
+  actions: read
 
 jobs:
-  status:
-    name: cancel-single-stream-and-capture-range-metadata
+  retired:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
-    env:
-      GH_TOKEN: ${{ github.token }}
-      OBSOLETE_RUN_ID: '30519804938'
     steps:
-      - name: Cancel the unviable single-stream run
-        run: gh api --method POST "/repos/${GITHUB_REPOSITORY}/actions/runs/${OBSOLETE_RUN_ID}/cancel" || true
-      - name: Capture exact archive size and range support
-        run: |
-          set -euo pipefail
-          url='https://physionet.org/static/published-projects/bidsleep-dataset/bidsleep-dataset-1.0.0.zip'
-          curl --fail --location --connect-timeout 30 --max-time 120 \
-            --range 0-0 --dump-header archive-range-headers.txt --output archive-byte.bin \
-            --write-out '{"http_code":%{http_code},"size_download":%{size_download},"speed_download":%{speed_download},"time_total":%{time_total},"url_effective":"%{url_effective}"}\n' \
-            "$url" > archive-range-probe.json
-          python - <<'PY'
-          import json,re
-          headers=open('archive-range-headers.txt',errors='replace').read()
-          matches=re.findall(r'(?im)^content-range:\s*bytes\s+(\d+)-(\d+)/(\d+)\s*$',headers)
-          if not matches:
-              raise SystemExit('Content-Range total not found')
-          start,end,total=map(int,matches[-1])
-          probe=json.load(open('archive-range-probe.json'))
-          result={'range_start':start,'range_end':end,'total_bytes':total,**probe}
-          json.dump(result,open('archive-range-metadata.json','w'),indent=2)
-          print(result)
-          PY
-      - uses: actions/upload-artifact@v4
-        with:
-          name: bidsleep-archive-range-metadata
-          path: |
-            archive-range-headers.txt
-            archive-range-probe.json
-            archive-range-metadata.json
-          retention-days: 7
-          compression-level: 9
+      - run: echo 'One-shot diagnostic completed; remote ZIP Range execution is now authoritative.'
