@@ -1,0 +1,123 @@
+name: BID-Sleep Phase 5-6 Accelerated
+
+on:
+  push:
+    branches: ['agent/bidsleep-phase4-6']
+    paths:
+      - '.github/workflows/bidsleep-phase4-6-accelerated.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: bidsleep-phase4-6-accelerated
+  cancel-in-progress: true
+
+jobs:
+  collect-prior:
+    name: collect-shards-0-1
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SOURCE_RUN: '30516711217'
+    steps:
+      - name: Wait for completed shard 0 and 1 artifacts
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 600); do
+            names="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${SOURCE_RUN}/artifacts" --paginate --jq '.artifacts[].name' || true)"
+            if grep -qx 'shard-0' <<<"$names" && grep -qx 'shard-1' <<<"$names"; then
+              exit 0
+            fi
+            sleep 30
+          done
+          echo 'Timed out waiting for shard-0 and shard-1 artifacts' >&2
+          exit 1
+      - name: Download completed prior shards
+        run: |
+          set -euo pipefail
+          mkdir -p prior-shards/shard-0 prior-shards/shard-1
+          gh run download "$SOURCE_RUN" --repo "$GITHUB_REPOSITORY" --name shard-0 --dir prior-shards/shard-0
+          gh run download "$SOURCE_RUN" --repo "$GITHUB_REPOSITORY" --name shard-1 --dir prior-shards/shard-1
+      - name: Cancel superseded original run
+        if: always()
+        run: gh api --method POST "repos/${GITHUB_REPOSITORY}/actions/runs/${SOURCE_RUN}/cancel" || true
+      - name: Upload prior shard bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: prior-shards-0-1
+          path: prior-shards
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 9
+
+  extract:
+    name: extract-shard-${{ matrix.shard }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        shard: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: research/bidsleep_phase4_6/requirements.txt
+      - run: pip install -r research/bidsleep_phase4_6/requirements.txt
+      - name: Download, verify, extract and automatically QC
+        run: python research/bidsleep_phase4_6/run_pipeline.py shard --index ${{ matrix.shard }} --count 16 --out shard-output
+      - name: Upload shard output and diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: shard-${{ matrix.shard }}
+          path: shard-output
+          if-no-files-found: warn
+          retention-days: 30
+          compression-level: 9
+
+  aggregate:
+    name: aggregate-phase-6
+    needs: [collect-prior, extract]
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: research/bidsleep_phase4_6/requirements.txt
+      - run: pip install -r research/bidsleep_phase4_6/requirements.txt
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: shard-*
+          path: shard-artifacts
+      - uses: actions/download-artifact@v4
+        with:
+          name: prior-shards-0-1
+          path: prior-download
+      - name: Merge prior shards into shard artifact root
+        run: |
+          set -euo pipefail
+          cp -a prior-download/shard-0 shard-artifacts/shard-0
+          cp -a prior-download/shard-1 shard-artifacts/shard-1
+          find shard-artifacts -maxdepth 2 -type f | sort
+      - name: Verify 47 participants and 253 nights, then derive Phase 6 outputs
+        run: python research/bidsleep_phase4_6/run_pipeline.py aggregate --root shard-artifacts --out final
+      - name: Upload final Phase 5-6 artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bidsleep-phase5-6-final
+          path: final
+          if-no-files-found: warn
+          retention-days: 30
+          compression-level: 9
