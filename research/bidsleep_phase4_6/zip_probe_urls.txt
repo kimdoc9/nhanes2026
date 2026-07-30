@@ -1,0 +1,4 @@
+https://physionet.org/static/published-projects/bidsleep-dataset/bidsleep-dataset-1.0.0.zip
+https://physionet.org/files/bidsleep-dataset/1.0.0/bidsleep-dataset-1.0.0.zip
+https://physionet.org/files/bidsleep-dataset/1.0.0/bidsleep-dataset.zip
+https://physionet.org/files/bidsleep-dataset/1.0.0.zip
