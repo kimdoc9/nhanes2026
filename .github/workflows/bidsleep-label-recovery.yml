@@ -6,11 +6,6 @@ on:
     paths:
       - 'bidsleep_label_recovery.py'
       - '.github/workflows/bidsleep-label-recovery.yml'
-  pull_request:
-    branches: [main]
-    paths:
-      - 'bidsleep_label_recovery.py'
-      - '.github/workflows/bidsleep-label-recovery.yml'
   workflow_dispatch:
 
 permissions:
