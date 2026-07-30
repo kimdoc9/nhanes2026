@@ -1,0 +1,20 @@
+name: BID-Sleep Missing 147 Recovery Released
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/bidsleep-missing-147-recovery.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bidsleep-missing-147-recovery-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo 'Superseded by embedded-manifest recovery; runner capacity released.'
