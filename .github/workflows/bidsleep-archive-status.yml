@@ -13,13 +13,13 @@ permissions:
 
 jobs:
   status:
-    name: identify-current-and-salvageable-runs
+    name: identify-runs-and-probe-archive-transfer
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
-      - name: Query all branch workflow runs and artifacts
+      - name: Query branch workflow runs and archive transfer path
         run: |
           set -euo pipefail
           gh api \
@@ -35,21 +35,28 @@ jobs:
               rid=run['id']
               raw=subprocess.check_output(['gh','api',f'/repos/{os.environ["GITHUB_REPOSITORY"]}/actions/runs/{rid}/artifacts?per_page=100'])
               artifacts=json.loads(raw).get('artifacts',[])
-              row={
+              summary.append({
                   'id':rid,'name':run['name'],'run_number':run['run_number'],'event':run['event'],
                   'status':run['status'],'conclusion':run.get('conclusion'),'head_sha':run['head_sha'],
                   'created_at':run['created_at'],'updated_at':run['updated_at'],
                   'artifacts':[{'id':a['id'],'name':a['name'],'size_in_bytes':a['size_in_bytes'],'expired':a['expired']} for a in artifacts],
-              }
-              summary.append(row)
-              print(rid,run['name'],run['event'],run['status'],run.get('conclusion'),'artifacts=',[(a['name'],a['size_in_bytes']) for a in artifacts])
+              })
           json.dump(summary,open('run-artifact-summary.json','w'),indent=2)
           PY
+          url='https://physionet.org/static/published-projects/bidsleep-dataset/bidsleep-dataset-1.0.0.zip'
+          curl --fail --location --connect-timeout 30 --max-time 300 \
+            --range 0-10485759 --output archive-prefix.bin \
+            --write-out '{"http_code":%{http_code},"size_download":%{size_download},"speed_download":%{speed_download},"time_total":%{time_total},"url_effective":"%{url_effective}"}\n' \
+            "$url" > archive-transfer-probe.json
+          stat -c '%s' archive-prefix.bin > archive-prefix-size.txt
+          cat archive-transfer-probe.json
       - uses: actions/upload-artifact@v4
         with:
-          name: bidsleep-all-run-status
+          name: bidsleep-run-and-transfer-status
           path: |
             all-runs.json
             run-artifact-summary.json
+            archive-transfer-probe.json
+            archive-prefix-size.txt
           retention-days: 7
           compression-level: 9
