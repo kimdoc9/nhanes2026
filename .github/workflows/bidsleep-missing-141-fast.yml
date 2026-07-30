@@ -1,0 +1,20 @@
+name: BID-Sleep Missing 141 Fast Recovery Released
+
+on:
+  pull_request:
+    branches: ['agent/bidsleep-phase4-6']
+    paths:
+      - '.github/workflows/bidsleep-missing-141-fast.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bidsleep-missing-141-fast-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo 'Superseded by embedded-manifest recovery; partial artifacts retained.'
