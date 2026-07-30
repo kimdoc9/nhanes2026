@@ -1,0 +1,41 @@
+name: BID-Sleep Archive Status Diagnostic
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/bidsleep-archive-status.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  status:
+    name: identify-current-archive-run
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Query archive workflow runs
+        run: |
+          set -euo pipefail
+          gh api \
+            --method GET \
+            -H 'Accept: application/vnd.github+json' \
+            "/repos/${GITHUB_REPOSITORY}/actions/workflows/bidsleep-archive.yml/runs?branch=agent%2Fbidsleep-phase4-6&per_page=20" \
+            > archive-runs.json
+          python - <<'PY'
+          import json
+          data=json.load(open('archive-runs.json'))
+          for run in data.get('workflow_runs', []):
+              print(run['id'], run['event'], run['status'], run.get('conclusion'), run['head_sha'], run['created_at'], run['updated_at'])
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bidsleep-archive-run-status
+          path: archive-runs.json
+          retention-days: 7
+          compression-level: 9
