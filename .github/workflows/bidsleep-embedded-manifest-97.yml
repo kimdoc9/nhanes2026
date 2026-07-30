@@ -1,0 +1,70 @@
+name: BID-Sleep Embedded Manifest 97 Recovery
+
+on:
+  pull_request:
+    branches: ['agent/bidsleep-phase4-6']
+    paths:
+      - 'bidsleep_embedded_manifest_recovery.py'
+      - 'research/bidsleep_phase4_6/completed_156_pairs.txt'
+      - '.github/workflows/bidsleep-embedded-manifest-97.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bidsleep-embedded-manifest-97-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: validate-embedded-manifest-recovery
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: research/bidsleep_phase4_6/requirements.txt
+      - run: pip install -r research/bidsleep_phase4_6/requirements.txt requests
+      - name: Compile and validate completed list
+        run: |
+          python -m py_compile research/bidsleep_phase4_6/pipeline.py research/bidsleep_phase4_6/run_pipeline.py bidsleep_remote_zip_runner.py bidsleep_embedded_manifest_recovery.py
+          test "$(grep -cve '^$' research/bidsleep_phase4_6/completed_156_pairs.txt)" -eq 156
+
+  recover:
+    name: embedded-recovery-${{ matrix.shard }}
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      max-parallel: 10
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: research/bidsleep_phase4_6/requirements.txt
+      - run: pip install -r research/bidsleep_phase4_6/requirements.txt requests
+      - name: Recover assigned nights using official ZIP embedded SHA-256 manifest
+        run: >-
+          python bidsleep_embedded_manifest_recovery.py
+          --index ${{ matrix.shard }}
+          --count 14
+          --completed research/bidsleep_phase4_6/completed_156_pairs.txt
+          --out recovery-output
+      - name: Upload recovery output and diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: embedded-recovery-${{ matrix.shard }}
+          path: recovery-output
+          if-no-files-found: warn
+          retention-days: 30
+          compression-level: 9
