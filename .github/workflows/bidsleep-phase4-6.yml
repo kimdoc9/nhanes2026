@@ -6,6 +6,11 @@ on:
     paths:
       - 'research/bidsleep_phase4_6/**'
       - '.github/workflows/bidsleep-phase4-6.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'research/bidsleep_phase4_6/**'
+      - '.github/workflows/bidsleep-phase4-6.yml'
   workflow_dispatch:
 
 permissions:
