@@ -1,14 +1,6 @@
 name: BID-Sleep Phase 6 Labels
 
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - 'bidsleep_labels_phase6.py'
-      - '.github/workflows/bidsleep-labels-phase6.yml'
-      - 'research/bidsleep_phase4_6/pipeline.py'
-      - 'research/bidsleep_phase4_6/run_pipeline.py'
-      - 'research/bidsleep_phase4_6/requirements.txt'
   workflow_dispatch:
 
 permissions:
