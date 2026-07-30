@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Run the locked Phase 5–6 pipeline with a narrow dataset-specific label-span correction.
 
-The BID-Sleep file Bidslab01/night 4 contains 771 expert-reviewed epochs and
-935 automated Dreem epochs with the same recording start. Expert labels are the
-primary reference. Therefore, automated labels are restricted to the expert
-review window: a longer Dreem vector is tail-truncated; a shorter vector would
-be padded with Unknown (5). No expert epoch is created, removed, or imputed.
+The BID-Sleep data contain a small number of nights where the automated Dreem
+vector is not the same length as the expert-reviewed vector. Expert labels are
+the primary reference. Therefore, automated labels are restricted to the expert
+review window: a longer Dreem vector is tail-truncated; a shorter vector is
+padded with Unknown (5). No expert epoch is created, removed, or imputed.
 """
 from __future__ import annotations
 
@@ -59,7 +59,7 @@ def load_labels_expert_window(path: Path) -> tuple[float, np.ndarray, np.ndarray
         dreem = dreem[: len(expert)]
         action = "tail_truncated"
     elif len(dreem) < len(expert):
-        dreem = np.pad(dreem, (0, len(expert) - len(dreem)), constant_values=p.UNKNOWN_LABEL)
+        dreem = np.pad(dreem, (0, len(expert) - len(dreem)), constant_values=p.UNKNOWN)
         action = "tail_padded_unknown"
     else:
         action = "none"
