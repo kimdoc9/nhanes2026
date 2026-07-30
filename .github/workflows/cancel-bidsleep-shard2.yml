@@ -1,0 +1,20 @@
+name: Cancel Redundant BID-Sleep Shard 2 Run
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/cancel-bidsleep-shard2.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bidsleep-remote-shard2-recovery
+  cancel-in-progress: true
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo 'Redundant shard-2 run cancelled; targeted recovery remains active.'
