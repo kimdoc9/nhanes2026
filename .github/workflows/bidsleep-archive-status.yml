@@ -13,29 +13,43 @@ permissions:
 
 jobs:
   status:
-    name: identify-current-archive-run
+    name: identify-current-and-salvageable-runs
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
-      - name: Query archive workflow runs
+      - name: Query all branch workflow runs and artifacts
         run: |
           set -euo pipefail
           gh api \
             --method GET \
             -H 'Accept: application/vnd.github+json' \
-            "/repos/${GITHUB_REPOSITORY}/actions/workflows/bidsleep-archive.yml/runs?branch=agent%2Fbidsleep-phase4-6&per_page=20" \
-            > archive-runs.json
+            "/repos/${GITHUB_REPOSITORY}/actions/runs?branch=agent%2Fbidsleep-phase4-6&per_page=100" \
+            > all-runs.json
           python - <<'PY'
-          import json
-          data=json.load(open('archive-runs.json'))
+          import json, os, subprocess
+          data=json.load(open('all-runs.json'))
+          summary=[]
           for run in data.get('workflow_runs', []):
-              print(run['id'], run['event'], run['status'], run.get('conclusion'), run['head_sha'], run['created_at'], run['updated_at'])
+              rid=run['id']
+              raw=subprocess.check_output(['gh','api',f'/repos/{os.environ["GITHUB_REPOSITORY"]}/actions/runs/{rid}/artifacts?per_page=100'])
+              artifacts=json.loads(raw).get('artifacts',[])
+              row={
+                  'id':rid,'name':run['name'],'run_number':run['run_number'],'event':run['event'],
+                  'status':run['status'],'conclusion':run.get('conclusion'),'head_sha':run['head_sha'],
+                  'created_at':run['created_at'],'updated_at':run['updated_at'],
+                  'artifacts':[{'id':a['id'],'name':a['name'],'size_in_bytes':a['size_in_bytes'],'expired':a['expired']} for a in artifacts],
+              }
+              summary.append(row)
+              print(rid,run['name'],run['event'],run['status'],run.get('conclusion'),'artifacts=',[(a['name'],a['size_in_bytes']) for a in artifacts])
+          json.dump(summary,open('run-artifact-summary.json','w'),indent=2)
           PY
       - uses: actions/upload-artifact@v4
         with:
-          name: bidsleep-archive-run-status
-          path: archive-runs.json
+          name: bidsleep-all-run-status
+          path: |
+            all-runs.json
+            run-artifact-summary.json
           retention-days: 7
           compression-level: 9
