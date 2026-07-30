@@ -1,8 +1,8 @@
 name: BID-Sleep Remote ZIP Shard 2 Recovery
 
 on:
-  pull_request:
-    branches: [main]
+  push:
+    branches: ['agent/bidsleep-phase4-6']
     paths:
       - 'bidsleep_remote_shard2_recovery.py'
       - '.github/workflows/bidsleep-remote-shard2-recovery.yml'
@@ -30,7 +30,6 @@ jobs:
       - run: pip install -r research/bidsleep_phase4_6/requirements.txt requests
       - name: Recover shard 2 with resilient official-manifest retrieval
         run: |
-          # This job is isolated so the 11 successful/in-progress main shards are never restarted.
           python -m py_compile research/bidsleep_phase4_6/pipeline.py research/bidsleep_phase4_6/run_pipeline.py bidsleep_remote_zip_runner.py bidsleep_remote_shard2_recovery.py
           python bidsleep_remote_shard2_recovery.py
       - name: Upload recovered shard 2
