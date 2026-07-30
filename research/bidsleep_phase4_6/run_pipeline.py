@@ -16,10 +16,12 @@ import numpy as np
 
 import pipeline as p
 
+_ORIGINAL_LOAD_LABELS = p.load_labels
+
 
 def load_labels_expert_window(path: Path) -> tuple[float, np.ndarray, np.ndarray, list[str]]:
     try:
-        return p.load_labels(path)
+        return _ORIGINAL_LOAD_LABELS(path)
     except RuntimeError as exc:
         if "Invalid label lengths" not in str(exc):
             raise
