@@ -4,7 +4,12 @@ on:
   push:
     branches: [main]
     paths:
-      - 'analysis/phase123.py'
+      - 'analysis/**'
+      - '.github/workflows/phase123.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'analysis/**'
       - '.github/workflows/phase123.yml'
   workflow_dispatch:
 
