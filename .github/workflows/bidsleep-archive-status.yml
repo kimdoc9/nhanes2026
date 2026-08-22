@@ -1,0 +1,42 @@
+name: BID-Sleep Execution Status Diagnostic
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/bidsleep-archive-status.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  status:
+    name: identify-authoritative-and-recovery-runs
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Query workflow runs
+        run: |
+          set -euo pipefail
+          for workflow in bidsleep-remote-zip.yml bidsleep-remote-shard2-recovery.yml; do
+            gh api "/repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow}/runs?branch=agent%2Fbidsleep-phase4-6&per_page=20" > "${workflow}.json"
+          done
+          python - <<'PY'
+          import glob,json
+          output={}
+          for path in glob.glob('*.yml.json'):
+              data=json.load(open(path))
+              output[path]=[{k:r.get(k) for k in ('id','name','run_number','event','status','conclusion','head_sha','created_at','updated_at')} for r in data.get('workflow_runs',[])]
+          json.dump(output,open('execution-status.json','w'),indent=2)
+          print(json.dumps(output,indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bidsleep-execution-status
+          path: execution-status.json
+          retention-days: 7
+          compression-level: 9

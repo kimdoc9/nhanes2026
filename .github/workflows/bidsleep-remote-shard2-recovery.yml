@@ -1,0 +1,48 @@
+name: BID-Sleep Remote ZIP Shard 2 Recovery
+
+on:
+  push:
+    branches: ['agent/bidsleep-phase4-6']
+    paths:
+      - 'bidsleep_remote_shard2_recovery.py'
+      - '.github/workflows/bidsleep-remote-shard2-recovery.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'bidsleep_remote_shard2_recovery.py'
+      - '.github/workflows/bidsleep-remote-shard2-recovery.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bidsleep-remote-shard2-recovery
+  cancel-in-progress: true
+
+jobs:
+  recover:
+    name: recover-remote-zip-shard-2
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: research/bidsleep_phase4_6/requirements.txt
+      - run: pip install -r research/bidsleep_phase4_6/requirements.txt requests
+      - name: Recover shard 2 with resilient official-manifest retrieval
+        run: |
+          python -m py_compile research/bidsleep_phase4_6/pipeline.py research/bidsleep_phase4_6/run_pipeline.py bidsleep_remote_zip_runner.py bidsleep_remote_shard2_recovery.py
+          python bidsleep_remote_shard2_recovery.py
+      - name: Upload recovered shard 2
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: remote-shard-2-recovered
+          path: recovered-shard-2
+          if-no-files-found: warn
+          retention-days: 30
+          compression-level: 9

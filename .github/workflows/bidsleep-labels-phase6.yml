@@ -1,0 +1,73 @@
+name: BID-Sleep Phase 6 Labels
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bidsleep-phase6-labels
+  cancel-in-progress: true
+
+jobs:
+  label-shard:
+    name: label-shard-${{ matrix.shard }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6, 7]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: research/bidsleep_phase4_6/requirements.txt
+      - run: pip install -r research/bidsleep_phase4_6/requirements.txt
+      - name: Compile label-only pipeline
+        run: python -m py_compile research/bidsleep_phase4_6/pipeline.py research/bidsleep_phase4_6/run_pipeline.py bidsleep_labels_phase6.py
+      - name: Download and derive label reference metrics
+        run: python bidsleep_labels_phase6.py shard --index ${{ matrix.shard }} --count 8 --out label-output
+      - name: Upload label shard and diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: shard-${{ matrix.shard }}
+          path: label-output
+          if-no-files-found: warn
+          retention-days: 14
+          compression-level: 9
+
+  aggregate-labels:
+    name: aggregate-253-label-nights
+    needs: label-shard
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: research/bidsleep_phase4_6/requirements.txt
+      - run: pip install -r research/bidsleep_phase4_6/requirements.txt
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: shard-*
+          path: label-shards
+      - name: Verify 47 participants and 253 nights; derive Phase 6 label outputs
+        run: python bidsleep_labels_phase6.py aggregate --root label-shards --out phase6-label-final
+      - name: Upload Phase 6 label outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bidsleep-phase6-label-final
+          path: phase6-label-final
+          if-no-files-found: warn
+          retention-days: 30
+          compression-level: 9

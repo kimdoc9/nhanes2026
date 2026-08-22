@@ -1,0 +1,13 @@
+name: BID-Sleep Phase 5-6 Per-File Shards (Superseded)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  superseded:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo 'Superseded by the single-download archive streaming workflow.'
