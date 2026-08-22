@@ -1,0 +1,20 @@
+name: Cancel Redundant BID-Sleep Full Run
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/cancel-bidsleep-remote-zip.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bidsleep-phase5-6-remote-zip
+  cancel-in-progress: true
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo 'Redundant full-range run cancelled; runner capacity released for targeted recovery.'
